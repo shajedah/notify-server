@@ -147,9 +147,12 @@ def notify():
 def register():
     data  = request.get_json(force=True) or {}
     token = data.get("token", "").strip()
+    print(f"[REGISTER] received token length: {len(token)}, preview: {token[:30] if token else 'EMPTY'}")
     if token:
         fcm_tokens.add(token)
-        print(f"Token registered. Total tokens: {len(fcm_tokens)}")
+        print(f"[REGISTER] Token added. Total: {len(fcm_tokens)}")
+    else:
+        print("[REGISTER] WARNING: empty token received!")
     return jsonify({"ok": True})
 
 @app.route("/status", methods=["GET"])

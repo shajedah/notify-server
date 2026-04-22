@@ -107,7 +107,39 @@ def notify():
     state["device"] = data.get("device", "Unknown")
 
     push_sse(f"data: online|{state['name']}|{state['device']}\n\n")
-    gevent.spawn(send_fcm, state["device"])
+
+    # Send FCM synchronously so errors are visible in logs
+    print(f"[NOTIFY] device={state['device']} tokens={len(fcm_tokens)}")
+    if fcm_tokens:
+        dead = []
+        for token in list(fcm_tokens):
+            try:
+                msg = messaging.Message(
+                    notification=messaging.Notification(
+                        title="🟢 Online",
+                        body=f"{state['device']} is online",
+                    ),
+                    data={"device": state["device"]},
+                    token=token,
+                    android=messaging.AndroidConfig(
+                        priority="high",
+                        notification=messaging.AndroidNotification(
+                            channel_id="momo_alerts",
+                            priority="high",
+                            default_sound=True,
+                        )
+                    )
+                )
+                result = messaging.send(msg)
+                print(f"[FCM] OK: {result}")
+            except Exception as e:
+                print(f"[FCM] ERROR: {e}")
+                if "not-registered" in str(e) or "invalid" in str(e).lower():
+                    dead.append(token)
+        for t in dead:
+            fcm_tokens.discard(t)
+    else:
+        print("[FCM] No tokens — skipping")
 
     return jsonify({"ok": True})
 
